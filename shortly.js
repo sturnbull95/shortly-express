@@ -2,7 +2,10 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
 
+var bcrypt = require('bcrypt');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -26,26 +29,23 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-var sess;
 app.get('/',
 function(req, res) {
   // sess = req.session;
-  if (sess) {
+  if (req.session.username) {
     res.render('index');
   } else {
-    res.redirect('login');
+    res.redirect('/login');
   }
-  //check to see if logged in
-  // res.render('index');
 });
 
 app.get('/create',
 function(req, res) {
   // sess = req.session;
-  if (sess) {
+  if (req.session.username) {
     res.render('index');
   } else {
-    res.redirect('login');
+    res.redirect('/login');
   }
 });
 
@@ -53,12 +53,13 @@ app.get('/links',
 function(req, res) {
   // sess = req.session;
   // console.log(sess.username)
-  if (sess) {
+  // console.log(req.session, req.session.username)
+  if (req.session && req.session.username) {
     Links.reset().fetch().then(function(links) {
       res.status(200).send(links.models);
     });
   } else {
-    res.redirect('login');
+    res.redirect('/login');
   }
 });
 
@@ -104,39 +105,48 @@ function(req,res){
 
 app.get('/logout',
 function(req,res){
-  sess = null;
+  req.session.destroy();
   res.render('login');
 });
 
+app.get('/signup',
+function(req,res){
+  res.render('signup');
+});
 
 app.post('/login', function(req,res){
   var username = req.body.username;
   var password = req.body.password;
-  sess = req.session;
-  sess.username = username;
-  sess.password = password;
   new User({ username: username }).fetch().then(function(found) {
     if (found) {
-      req.url = '/index';
-      res.redirect('/');
+      if ( bcrypt.compareSync(password, found.attributes.password )) {
+        req.session.username = username;
+        req.session.password = bcrypt.hashSync(password, 10);
+        // console.log('HELLO')
+        res.redirect('/');
+      } else {
+        res.redirect('/login',{ error: 'Invalid email or password.' });
+      }
     } else {
         res.redirect('/login');
     }
   });
 });
 
-app.post('/signup', function(req,res){
+app.post('/signup',function(req,res){
   var username = req.body.username;
   var password = req.body.password;
   new User({ username: username }).fetch().then(function(found) {
     if (found) {
-      res.render('login');
+      res.redirect('/login');
     } else {
+      req.session.username = username;
+      req.session.password = bcrypt.hashSync(password, 10);
         Users.create({
           username:username,
-          password:password
+          password:bcrypt.hashSync(password, 10),
         })
-        .then(function(obj) {
+        .then(function() {
           res.redirect('/');
         });
     }

@@ -1,5 +1,6 @@
 var expect = require('chai').expect;
 var request = require('request');
+var bcrypt = require('bcrypt');
 
 var app = require('../shortly.js');
 var db = require('../app/config');
@@ -14,7 +15,6 @@ var Link = require('../app/models/link');
 // Remove the 'x' from beforeEach block when working on
 // authentication tests.
 /************************************************************/
-var xbeforeEach = function() {};
 /************************************************************/
 
 
@@ -80,7 +80,7 @@ describe('', function() {
       // create a user that we can then log-in with
       new User({
         'username': 'Phillip',
-        'password': 'Phillip'
+        'password': bcrypt.hashSync('Phillip', 10),
       }).save().then(function() {
         var options = {
           'method': 'POST',
@@ -88,7 +88,7 @@ describe('', function() {
           'uri': 'http://127.0.0.1:4568/login',
           'json': {
             'username': 'Phillip',
-            'password': 'Phillip'
+            'password': 'Phillip',
           }
         };
         // login via form and save session info
@@ -306,7 +306,7 @@ describe('', function() {
     beforeEach(function(done) {
       new User({
         'username': 'Phillip',
-        'password': 'Phillip'
+        'password': bcrypt.hashSync('Phillip',10)
       }).save().then(function() {
         done();
       });
